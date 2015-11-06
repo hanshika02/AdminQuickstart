@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">AdminQuickstart</string>
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_main">MainActivity</string>
+    <string name="title_text">ZeMoSo Contacts</string>
+    <string name="signed_out">signed out</string>
+    <string name="title_activity_call">CallActivity</string>
+</resources>

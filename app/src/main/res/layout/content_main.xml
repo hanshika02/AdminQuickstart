@@ -31,17 +31,10 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="10dp"
             android:text="@string/title_text"
+            android:fontFamily="sans-serif-light"
             android:gravity="center"
             android:textColor="#000000"
             android:textSize="36sp" />
-
-        <TextView
-            android:id="@+id/status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/signed_out"
-            android:textColor="#000000"
-            android:textSize="14sp" />
 
         <TextView
             android:id="@+id/email"

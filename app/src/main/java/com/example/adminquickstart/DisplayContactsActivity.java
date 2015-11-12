@@ -1,6 +1,5 @@
 package com.example.adminquickstart;
 
-import com.example.adminquickstart.R;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.api.client.extensions.android.http.AndroidHttp;
@@ -30,6 +29,7 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
@@ -40,11 +40,13 @@ import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -89,6 +91,7 @@ public class DisplayContactsActivity extends Activity {
     static final int REQUEST_ACCOUNT_PICKER = 1000;
     static final int REQUEST_AUTHORIZATION = 1001;
     static final int REQUEST_GOOGLE_PLAY_SERVICES = 1002;
+    static String email;
     private static final String PREF_ACCOUNT_NAME = "accountName";
     private static final String[] SCOPES = { DirectoryScopes.ADMIN_DIRECTORY_USER_READONLY };
     private List<User> users;
@@ -116,6 +119,7 @@ public class DisplayContactsActivity extends Activity {
 
         mOutputText = new TextView(this);
         mOutputText.setLayoutParams(tlp);
+        mOutputText.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
         mOutputText.setPadding(16, 16, 16, 16);
         mOutputText.setVerticalScrollBarEnabled(true);
         mOutputText.setMovementMethod(new ScrollingMovementMethod());
@@ -128,8 +132,7 @@ public class DisplayContactsActivity extends Activity {
 
         // Initialize credentials and service object.
         SharedPreferences settings = getPreferences(Context.MODE_PRIVATE);
-        mCredential = GoogleAccountCredential.usingOAuth2(
-                getApplicationContext(), Arrays.asList(SCOPES))
+        mCredential = GoogleAccountCredential.usingOAuth2(getApplicationContext(), Arrays.asList(SCOPES))
                 .setBackOff(new ExponentialBackOff())
                 .setSelectedAccountName(settings.getString(PREF_ACCOUNT_NAME, null));
     }
@@ -142,6 +145,13 @@ public class DisplayContactsActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        Bundle userInfo = getIntent().getExtras();
+        if(userInfo != null) {
+            // TODO: 12/11/15 userInfo.getString("key") would give us all the required values to be updated.
+
+
+        }
+
         if (isGooglePlayServicesAvailable()) {
             refreshResults();
         } else {
@@ -149,6 +159,7 @@ public class DisplayContactsActivity extends Activity {
                     "after installing, close and relaunch this app.");
         }
     }
+
 
     /**
      * Called when an activity launched here (specifically, AccountPicker
@@ -280,8 +291,7 @@ public class DisplayContactsActivity extends Activity {
         public MakeRequestTask(GoogleAccountCredential credential) {
             HttpTransport transport = AndroidHttp.newCompatibleTransport();
             JsonFactory jsonFactory = JacksonFactory.getDefaultInstance();
-            mService = new com.google.api.services.admin.directory.Directory.Builder(
-                    transport, jsonFactory, credential)
+            mService = new com.google.api.services.admin.directory.Directory.Builder(transport, jsonFactory, credential)
                     .setApplicationName("Directory API Android Quickstart")
                     .build();
         }
@@ -434,6 +444,10 @@ public class DisplayContactsActivity extends Activity {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 setContentView(R.layout.displaydetails);
+
+                TextView name = (TextView)findViewById(R.id.nameInDetails);
+                name.setGravity(Gravity.CENTER);
+
                 final User selectedUser = users.get(position);
                 final Button button = (Button) findViewById(R.id.call);
                 if(selectedUser.getName().getFullName()!=null) {
@@ -478,5 +492,20 @@ public class DisplayContactsActivity extends Activity {
 
             }
         });
+    }
+
+    public void startUpdateActivity(View view) {
+        String email = mCredential.getSelectedAccountName();
+        Intent intent = new Intent(DisplayContactsActivity.this, UpdateActivity.class);
+        for (User user : users) {
+            if(email.equals(user.getPrimaryEmail().toString())) {
+                // TODO: 12/11/15 get the address and phone number from the directory
+                intent.putExtra("name", user.getName().getFullName());
+                intent.putExtra("address", "adddddddddddrrrrrrrrrrrresssssssssssss");
+                intent.putExtra("phone", "675467654546765432");
+                intent.putExtra("email", email);
+            }
+        }
+        startActivity(intent);
     }
 }

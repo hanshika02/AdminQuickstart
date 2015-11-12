@@ -91,7 +91,6 @@ public class DisplayContactsActivity extends Activity {
     static final int REQUEST_ACCOUNT_PICKER = 1000;
     static final int REQUEST_AUTHORIZATION = 1001;
     static final int REQUEST_GOOGLE_PLAY_SERVICES = 1002;
-    static String email;
     private static final String PREF_ACCOUNT_NAME = "accountName";
     private static final String[] SCOPES = { DirectoryScopes.ADMIN_DIRECTORY_USER_READONLY };
     private List<User> users;
@@ -104,7 +103,6 @@ public class DisplayContactsActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Intent intent = getIntent();
         LinearLayout activityLayout = new LinearLayout(this);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -317,7 +315,7 @@ public class DisplayContactsActivity extends Activity {
          * @throws IOException
          */
         private List<String> getDataFromApi() throws IOException {
-            // Get the first 10 users in the domain.
+
             Users result = mService.users().list()
                     .setCustomer("my_customer")
                     .setOrderBy("email")
@@ -499,11 +497,29 @@ public class DisplayContactsActivity extends Activity {
         Intent intent = new Intent(DisplayContactsActivity.this, UpdateActivity.class);
         for (User user : users) {
             if(email.equals(user.getPrimaryEmail().toString())) {
-                // TODO: 12/11/15 get the address and phone number from the directory
                 intent.putExtra("name", user.getName().getFullName());
-                intent.putExtra("address", "adddddddddddrrrrrrrrrrrresssssssssssss");
-                intent.putExtra("phone", "675467654546765432");
+                Object address = user.getAddresses();
+                if (address == null) {
+                    intent.putExtra("address", "");
+                }
+                else {
+                    intent.putExtra("address", address.toString());
+                }
+
+                Object phone = user.getPhones();
+                if (phone == null) {
+                    intent.putExtra("phone", "");
+                }
+                else {
+                    intent.putExtra("phone", phone.toString());
+                }
                 intent.putExtra("email", email);
+
+                try {
+                    Log.i("user details", user.toPrettyString());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
         startActivity(intent);

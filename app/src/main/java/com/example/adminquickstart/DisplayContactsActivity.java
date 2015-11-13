@@ -12,7 +12,9 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.ExponentialBackOff;
 
+import java.io.BufferedOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.Object;
 
 import com.google.api.services.admin.directory.DirectoryScopes;
@@ -52,10 +54,18 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 public class DisplayContactsActivity extends Activity {
@@ -92,9 +102,14 @@ public class DisplayContactsActivity extends Activity {
     static final int REQUEST_AUTHORIZATION = 1001;
     static final int REQUEST_GOOGLE_PLAY_SERVICES = 1002;
     private static final String PREF_ACCOUNT_NAME = "accountName";
-    private static final String[] SCOPES = { DirectoryScopes.ADMIN_DIRECTORY_USER_READONLY };
+    private static final String[] SCOPES = { DirectoryScopes.ADMIN_DIRECTORY_USER_READONLY, DirectoryScopes.ADMIN_DIRECTORY_USER };
     private List<User> users;
     private ListView mOutputList;
+    private String name = "";
+    private String email = "";
+    private String address = "";
+    private String phone = "";
+    private boolean toBeUpdated = false;
 
     /**
      * Create the main activity.
@@ -129,6 +144,7 @@ public class DisplayContactsActivity extends Activity {
         setContentView(activityLayout);
 
         // Initialize credentials and service object.
+        //at this place, all the required permissions have been granted.
         SharedPreferences settings = getPreferences(Context.MODE_PRIVATE);
         mCredential = GoogleAccountCredential.usingOAuth2(getApplicationContext(), Arrays.asList(SCOPES))
                 .setBackOff(new ExponentialBackOff())
@@ -145,9 +161,11 @@ public class DisplayContactsActivity extends Activity {
         super.onResume();
         Bundle userInfo = getIntent().getExtras();
         if(userInfo != null) {
-            // TODO: 12/11/15 userInfo.getString("key") would give us all the required values to be updated.
-
-
+            name = userInfo.getString("name");
+            email = userInfo.getString("email");
+            address = userInfo.getString("address");
+            phone = userInfo.getString("phone");
+            toBeUpdated = true;
         }
 
         if (isGooglePlayServicesAvailable()) {
@@ -289,10 +307,73 @@ public class DisplayContactsActivity extends Activity {
         public MakeRequestTask(GoogleAccountCredential credential) {
             HttpTransport transport = AndroidHttp.newCompatibleTransport();
             JsonFactory jsonFactory = JacksonFactory.getDefaultInstance();
+
             mService = new com.google.api.services.admin.directory.Directory.Builder(transport, jsonFactory, credential)
-                    .setApplicationName("Directory API Android Quickstart")
-                    .build();
+                        .setApplicationName("Directory API Android Quickstart")
+                        .build();
+
+
+            /*
+                Here, we are putting the information to be updated in the JSON object.
+                 At this point, we have all the permissions, so, I decided to put the update thing here.
+             */
+            JSONObject updatedObject = new JSONObject();
+            JSONObject nameObject = new JSONObject();
+            try {
+                nameObject.put("fullName", name);
+                updatedObject.put("name", nameObject);
+                updatedObject.put("addresses", address);
+                updatedObject.put("phones", phone);
+
+            } catch (JSONException e) {
+                Log.i("exception: ", e.toString());
+            }
+            try {
+                putDataToGoogleServer("https://www.googleapis.com/admin/directory/v1/users/", updatedObject);
+            } catch (Throwable throwable) {
+                throwable.printStackTrace();
+            }
         }
+
+        // this method is supposed to do the POST request to update our entry.
+        private void putDataToGoogleServer(String s, JSONObject updatedObject) throws Throwable{
+
+            JSONStringer json = new JSONStringer();
+
+            if(updatedObject != null) {
+                Iterator<String> itKeys = updatedObject.keys();
+                if(itKeys.hasNext()) {
+                    json.object();
+                }
+                while (itKeys.hasNext()) {
+                    String key = itKeys.next();
+                    json.key(key).value(updatedObject.get(key));
+                    Log.e("keys " + key, "value " + updatedObject.get(key).toString());
+                }
+            }
+            json.endObject();
+            // TODO: 13/11/15 POST the string postData to "https://www.googleapis.com/admin/directory/v1/users/userKey"
+            /*
+                Little description of the scene: postData is the required json (converted to a string) which is to be posted
+                for updating our information.
+
+                Go to this link:
+                https://developers.google.com/admin-sdk/directory/v1/reference/users/update
+
+                In the HTTP request part, I don't understand what the userKey is. I tried email but that didn't work.
+
+             */
+
+
+            StringBuilder sb = new StringBuilder(s);
+            sb.append(email);
+            String postData = json.toString();
+            /*
+                a lot of code that i don't understand will be written here :(
+             */
+
+        }
+
 
         /**
          * Background task to call Directory API.
@@ -323,6 +404,12 @@ public class DisplayContactsActivity extends Activity {
                     .execute();
             users = result.getUsers();
             List<String> names = new ArrayList<>();
+
+//            User user1 = users.iterator().next();
+//            Log.i("first user:", user1.toPrettyString());
+//            mService.users().update("akeshwar@zemosolabs.com",user1);
+
+
             if (users != null) {
                 for (User user : users) {
                     names.add(user.getName().getFullName());

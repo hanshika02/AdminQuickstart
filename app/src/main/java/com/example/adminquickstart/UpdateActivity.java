@@ -10,6 +10,12 @@ import android.widget.TextView;
 
 public class UpdateActivity extends AppCompatActivity {
 
+    /*
+        Intetionally didn't create a class to store these values.
+        Because passing an object with intent was adding A LOT of code making this UpdataActivity.java double its size.
+        Unless we have high security issues (like checkmarx ka chu**yapa), we can ignore making objects :P
+     */
+
     String name, address, email, phone;
 
     @Override
@@ -27,6 +33,9 @@ public class UpdateActivity extends AppCompatActivity {
         ((EditText) findViewById(R.id.phone)).setText(phone);
         ((TextView) findViewById(R.id.email)).setText(email);
     }
+
+    //name is a mandatory field, email we won't want to change because I guess that would be the only unique thing.
+    // phone and address are the only things you can update.
 
     public void saveDetails(View view) {
         EditText nameText;
@@ -47,6 +56,7 @@ public class UpdateActivity extends AppCompatActivity {
             intent.putExtra("name", name);
             intent.putExtra("address", address);
             intent.putExtra("phone", phone);
+            intent.putExtra("email", email);
 
             startActivity(intent);
             finish();

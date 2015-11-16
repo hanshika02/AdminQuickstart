@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.adminquickstart"
-        minSdkVersion 17
+        minSdkVersion 15
         targetSdkVersion 23
         versionCode 1
         versionName "1.0"
@@ -28,11 +28,11 @@ dependencies {
     testCompile 'junit:junit:4.12'
     compile 'com.android.support:appcompat-v7:23.1.0'
     compile 'com.android.support:design:23.1.0'
+    compile 'com.google.android.gms:play-services-identity:7.8.0'
     compile('com.google.api-client:google-api-client-android:1.20.0') {
         exclude group: 'org.apache.httpcomponents'
     }
     compile('com.google.apis:google-api-services-admin-directory:directory_v1-rev53-1.20.0') {
         exclude group: 'org.apache.httpcomponents'
     }
-    compile 'com.google.android.gms:play-services:8.1.0'
 }

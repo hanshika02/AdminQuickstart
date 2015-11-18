@@ -7,6 +7,7 @@ import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccoun
 import com.google.api.client.googleapis.extensions.android.gms.auth.GooglePlayServicesAvailabilityIOException;
 import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException;
 
+import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -20,8 +21,15 @@ import java.lang.Object;
 import com.google.api.services.admin.directory.DirectoryScopes;
 
 import com.google.api.services.admin.directory.model.*;
+import com.google.gdata.client.authn.oauth.OAuthException;
+import com.google.gdata.client.authn.oauth.OAuthHttpClient;
+import com.google.gdata.client.contacts.ContactsService;
+import com.google.gdata.data.contacts.ContactEntry;
+import com.google.gdata.util.PreconditionFailedException;
+import com.google.gdata.util.ServiceException;
 
 import android.accounts.AccountManager;
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Dialog;
 import android.app.ProgressDialog;
@@ -36,6 +44,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.telephony.PhoneStateListener;
@@ -65,7 +74,6 @@ import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 
 public class DisplayContactsActivity extends Activity {
@@ -102,13 +110,15 @@ public class DisplayContactsActivity extends Activity {
     static final int REQUEST_AUTHORIZATION = 1001;
     static final int REQUEST_GOOGLE_PLAY_SERVICES = 1002;
     private static final String PREF_ACCOUNT_NAME = "accountName";
-    private static final String[] SCOPES = { DirectoryScopes.ADMIN_DIRECTORY_USER_READONLY, DirectoryScopes.ADMIN_DIRECTORY_USER };
+    private static final String[] SCOPES = { DirectoryScopes.ADMIN_DIRECTORY_USER_READONLY,
+            DirectoryScopes.ADMIN_DIRECTORY_USER, DirectoryScopes.ADMIN_DIRECTORY_USER_SECURITY};
     private List<User> users;
     private ListView mOutputList;
     private String name = "";
     private String email = "";
     private String address = "";
     private String phone = "";
+    private String userp = "";
     private boolean toBeUpdated = false;
 
     /**
@@ -300,10 +310,12 @@ public class DisplayContactsActivity extends Activity {
      * Placing the API calls in their own task ensures the UI stays responsive.
      */
 
+
     private class MakeRequestTask extends AsyncTask<Void, Void, List<String>> {
         private com.google.api.services.admin.directory.Directory mService = null;
         private Exception mLastError = null;
 
+        @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
         public MakeRequestTask(GoogleAccountCredential credential) {
             HttpTransport transport = AndroidHttp.newCompatibleTransport();
             JsonFactory jsonFactory = JacksonFactory.getDefaultInstance();
@@ -312,67 +324,8 @@ public class DisplayContactsActivity extends Activity {
                         .setApplicationName("Directory API Android Quickstart")
                         .build();
 
-
-            /*
-                Here, we are putting the information to be updated in the JSON object.
-                 At this point, we have all the permissions, so, I decided to put the update thing here.
-             */
-            JSONObject updatedObject = new JSONObject();
-            JSONObject nameObject = new JSONObject();
-            try {
-                nameObject.put("fullName", name);
-                updatedObject.put("name", nameObject);
-                updatedObject.put("addresses", address);
-                updatedObject.put("phones", phone);
-
-            } catch (JSONException e) {
-                Log.i("exception: ", e.toString());
-            }
-            try {
-                putDataToGoogleServer("https://www.googleapis.com/admin/directory/v1/users/", updatedObject);
-            } catch (Throwable throwable) {
-                throwable.printStackTrace();
-            }
         }
 
-        // this method is supposed to do the POST request to update our entry.
-        private void putDataToGoogleServer(String s, JSONObject updatedObject) throws Throwable{
-
-            JSONStringer json = new JSONStringer();
-
-            if(updatedObject != null) {
-                Iterator<String> itKeys = updatedObject.keys();
-                if(itKeys.hasNext()) {
-                    json.object();
-                }
-                while (itKeys.hasNext()) {
-                    String key = itKeys.next();
-                    json.key(key).value(updatedObject.get(key));
-                    Log.e("keys " + key, "value " + updatedObject.get(key).toString());
-                }
-            }
-            json.endObject();
-            // TODO: 13/11/15 POST the string postData to "https://www.googleapis.com/admin/directory/v1/users/userKey"
-            /*
-                Little description of the scene: postData is the required json (converted to a string) which is to be posted
-                for updating our information.
-
-                Go to this link:
-                https://developers.google.com/admin-sdk/directory/v1/reference/users/update
-
-                In the HTTP request part, I don't understand what the userKey is. I tried email but that didn't work.
-
-             */
-
-
-            StringBuilder sb = new StringBuilder(s);
-            sb.append(email);
-            String postData = json.toString();
-            /*
-                a lot of code that i don't understand will be written here :(
-             */
-
-        }
 
 
         /**
@@ -396,9 +349,9 @@ public class DisplayContactsActivity extends Activity {
          * @throws IOException
          */
         private List<String> getDataFromApi() throws IOException {
-
             Users result = mService.users().list()
                     .setCustomer("my_customer")
+                    .setProjection("full")
                     .setOrderBy("email")
                     .setViewType("domain_public")
                     .execute();
@@ -501,17 +454,18 @@ public class DisplayContactsActivity extends Activity {
         mOutputList.setAdapter(arrayAdapter);
         mOutputList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 
-            class DownloadImageTask extends AsyncTask<String,Void,Bitmap>{
+            class DownloadImageTask extends AsyncTask<String, Void, Bitmap> {
                 ImageView bmImage;
-                public DownloadImageTask(ImageView bmImage){
-                    this.bmImage=bmImage;
+
+                public DownloadImageTask(ImageView bmImage) {
+                    this.bmImage = bmImage;
                 }
 
                 @Override
                 protected Bitmap doInBackground(String... urls) {
                     String urlDisplay = urls[0];
                     Bitmap mIcon11 = null;
-                    try{
+                    try {
                         InputStream in = new java.net.URL(urlDisplay).openStream();
                         mIcon11 = BitmapFactory.decodeStream(in);
                     } catch (Exception e) {
@@ -530,33 +484,33 @@ public class DisplayContactsActivity extends Activity {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 setContentView(R.layout.displaydetails);
 
-                TextView name = (TextView)findViewById(R.id.nameInDetails);
+                TextView name = (TextView) findViewById(R.id.nameInDetails);
                 name.setGravity(Gravity.CENTER);
 
                 final User selectedUser = users.get(position);
                 final Button button = (Button) findViewById(R.id.call);
-                if(selectedUser.getName().getFullName()!=null) {
+                if (selectedUser.getName().getFullName() != null) {
                     ((TextView) findViewById(R.id.title)).setText(selectedUser.getName().getFullName());
                 }
-                if(selectedUser.getPrimaryEmail()!=null) {
+                if (selectedUser.getPrimaryEmail() != null) {
                     ((TextView) findViewById(R.id.email)).setText(selectedUser.getPrimaryEmail());
                 }
                 final Object userPhones = selectedUser.getPhones();
-                if (userPhones!=null) {
+                if (userPhones != null) {
                     String value = userPhones.toString();
-                    ((TextView) findViewById(R.id.primaryPhone)).setText(value.substring(8,22));
+                    ((TextView) findViewById(R.id.primaryPhone)).setText(value.substring(8, 22));
                     //((TextView) findViewById(R.id.primaryPhone)).setText(value);
-                }else{
+                } else {
                     button.setEnabled(false);
                     button.setBackgroundColor(Color.parseColor("grey"));
                 }
                 Object userAddresses = selectedUser.getAddresses();
-                if(userAddresses!=null) {
+                if (userAddresses != null) {
                     String value = userAddresses.toString();
                     ((TextView) findViewById(R.id.address)).setText(value.substring(23, value.length() - 2));
 //                            ((TextView) findViewById(R.id.address)).setText(value);
                 }
-                if(selectedUser.getThumbnailPhotoUrl()!=null){
+                if (selectedUser.getThumbnailPhotoUrl() != null) {
                     new DownloadImageTask((ImageView) findViewById(R.id.image))
                             .execute(selectedUser.getThumbnailPhotoUrl());
                 }
@@ -574,7 +528,7 @@ public class DisplayContactsActivity extends Activity {
                         startActivity(callIntent);
                     }
                 });
-
+                userp = selectedUser.getPassword();
             }
         });
     }
@@ -601,6 +555,8 @@ public class DisplayContactsActivity extends Activity {
                     intent.putExtra("phone", phone.toString());
                 }
                 intent.putExtra("email", email);
+
+                intent.putExtra("mCredential",mCredential.toString());
 
                 try {
                     Log.i("user details", user.toPrettyString());

@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.USE_CREDENTIALS" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <uses-feature
         android:name="android.hardware.microphone"
@@ -23,7 +24,8 @@
         android:icon="@mipmap/ic_launcher"
         android:label="Directory API Android Quickstart"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme" >
+        android:theme="@style/AppTheme"
+        android:name="android.support.multidex.MultiDexApplication">
         <activity
             android:name=".DisplayContactsActivity"
             android:label="Directory API Android Quickstart" >
